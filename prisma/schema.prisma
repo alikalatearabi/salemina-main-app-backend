@@ -1,0 +1,241 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             Int           @id @default(autoincrement())
+  phone          String        @unique
+  email          String?       @unique
+  name           String?
+  password       String?
+  gender         Gender?
+  birthDate      DateTime?     @map("birth_date")
+  height         Float?        // in cm
+  weight         Float?        // in kg
+  idealWeight    Float?        @map("ideal_weight") // in kg
+  activityLevel  ActivityLevel? @map("activity_level")
+  waterIntake    Float?        @map("water_intake") // daily intake in liters
+  appetiteMode   AppetiteMode? @map("appetite_mode")
+  signupComplete Boolean       @default(false) @map("signup_complete")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  
+  userIllnesses    UserIllness[]
+  userAllergies    UserAllergy[]
+  userPreferences  UserFoodPreference[]
+  consumedProducts UserConsumedProduct[]
+
+  @@map("users")
+}
+
+model Product {
+  id                Int       @id @default(autoincrement()) 
+  barcode           String    @unique
+  mainDataStatus    Int       @default(0) @map("main_data_status")
+  extraDataStatus   String?   @map("extra_data_status")
+  importer          String?
+  monitor           String?
+  cluster           String?
+  childCluster      String?   @map("child_cluster")
+  productName       String    @map("product_name")
+  brand             String?
+  pictureOld        String?   @map("picture_old")
+  pictureNew        String?   @map("picture_new")
+  pictureMainInfo   String?   @map("picture_main_info")
+  pictureExtraInfo  String?   @map("picture_extra_info")
+  productDescription String?   @map("product_description")
+  stateOfMatter     Int?      @map("state_of_matter")
+  per               Float?
+  calorie           Float?
+  sugar             Float?
+  fat               Float?
+  salt              Float?
+  transfattyAcids   Float?    @map("trans_fatty_acids")
+  perExt            String?   @map("per_ext")
+  calorieExt        String?   @map("calorie_ext")
+  calFat            String?   @map("cal_fat")
+  totalFat          String?   @map("total_fat")
+  saturatedFat      String?   @map("saturated_fat")
+  unsaturatedFat    String?   @map("unsaturated_fat")
+  transFat          String?   @map("trans_fat")
+  protein           String?
+  sugarExt          String?   @map("sugar_ext")
+  carbohydrate      String?
+  fiber             String?
+  saltExt           String?   @map("salt_ext")
+  sodium            String?
+  cholesterol       String?
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  
+  consumedBy        UserConsumedProduct[]
+
+  @@map("products")
+}
+
+model UserConsumedProduct {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  productId   Int      @map("product_id")
+  quantity    Float    // Quantity consumed (e.g., 1 for one full serving, 0.5 for half)
+  servingSize Float?   @map("serving_size") // Custom serving size if different from product's default
+  mealType    MealType @map("meal_type")
+  consumedAt  DateTime @map("consumed_at") // When the product was consumed
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, consumedAt]) // Index for faster querying by date
+  @@map("user_consumed_products")
+}
+
+model Illness {
+  id            Int            @id @default(autoincrement())
+  name          String         @unique
+  persianName   String         @unique
+  levels        IllnessLevel[]
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  
+  userIllnesses UserIllness[]
+
+  @@map("illnesses")
+}
+
+model UserIllness {
+  id          Int             @id @default(autoincrement())
+  userId      Int             @map("user_id")
+  illnessId   Int             @map("illness_id")
+  level       UserIllnessLevel  @default(MEDIUM)
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  illness     Illness         @relation(fields: [illnessId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, illnessId])
+  @@map("user_illnesses")
+}
+
+model Allergy {
+  id           Int            @id @default(autoincrement())
+  name         String         @unique
+  persianName  String         @unique
+  description  String?
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+  
+  userAllergies UserAllergy[]
+
+  @@map("allergies")
+}
+
+model UserAllergy {
+  id         Int           @id @default(autoincrement())
+  userId     Int           @map("user_id")
+  allergyId  Int           @map("allergy_id")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
+  
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  allergy    Allergy       @relation(fields: [allergyId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, allergyId])
+  @@map("user_allergies")
+}
+
+model FoodPreference {
+  id               Int                  @id @default(autoincrement())
+  name             String               @unique
+  persianName      String               @unique
+  description      String?
+  createdAt        DateTime             @default(now()) @map("created_at")
+  updatedAt        DateTime             @updatedAt @map("updated_at")
+  
+  userPreferences  UserFoodPreference[]
+
+  @@map("food_preferences")
+}
+
+model UserFoodPreference {
+  id                Int             @id @default(autoincrement())
+  userId            Int             @map("user_id")
+  foodPreferenceId  Int             @map("food_preference_id")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  foodPreference    FoodPreference  @relation(fields: [foodPreferenceId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, foodPreferenceId])
+  @@map("user_food_preferences")
+}
+
+model IllnessLevel {
+  id          Int      @id @default(autoincrement())
+  name        String
+  persianName String
+  illness     Illness  @relation(fields: [illnessId], references: [id])
+  illnessId   Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([illnessId, name])
+}
+
+model ActivityLevelTranslation {
+  id          Int          @id @default(autoincrement())
+  level       ActivityLevel
+  persianName String
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  @@unique([level])
+  @@map("activity_level_translations")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum ActivityLevel {
+  SEDENTARY
+  LOW
+  MODERATE
+  HIGH
+  VERY_HIGH
+}
+
+enum UserIllnessLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum AppetiteMode {
+  LOW
+  NORMAL
+  HIGH
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  DINNER
+  SNACK
+}
