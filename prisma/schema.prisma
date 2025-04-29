@@ -90,6 +90,7 @@ model UserConsumedProduct {
   productId   Int      @map("product_id")
   quantity    Float    // Quantity consumed (e.g., 1 for one full serving, 0.5 for half)
   servingSize Float?   @map("serving_size") // Custom serving size if different from product's default
+  unit        String?  // The unit of measurement (g, ml, tbsp, etc.)
   mealType    MealType @map("meal_type")
   consumedAt  DateTime @map("consumed_at") // When the product was consumed
   createdAt   DateTime @default(now()) @map("created_at")
