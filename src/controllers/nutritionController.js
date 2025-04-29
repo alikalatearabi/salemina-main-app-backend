@@ -5,7 +5,7 @@ const { asyncHandler, AppError } = require('../utils/helpers');
  * Add a consumed product for a user
  */
 const addConsumedProduct = asyncHandler(async (req, res) => {
-  const { userId, productId, quantity, servingSize, mealType, consumedAt } = req.body;
+  const { userId, productId, quantity, servingSize, mealType, consumedAt, unit } = req.body;
 
   if (!userId || !productId || !quantity || !mealType) {
     throw new AppError('User ID, product ID, quantity, and meal type are required', 400);
@@ -22,14 +22,39 @@ const addConsumedProduct = asyncHandler(async (req, res) => {
     throw new AppError('Product not found', 404);
   }
 
+  // Handle unit conversion if needed
+  let normalizedServingSize = servingSize ? parseFloat(servingSize) : null;
+  
+  // Convert to standard units (grams/ml) if a different unit is specified
+  if (normalizedServingSize && unit) {
+    const unitLower = unit.toLowerCase();
+    
+    if (unitLower === 'tablespoon' || unitLower === 'tbsp') {
+      // Convert tablespoon to grams/ml (approximately 15ml or 15g)
+      normalizedServingSize = normalizedServingSize * 15;
+    } else if (unitLower === 'teaspoon' || unitLower === 'tsp') {
+      // Convert teaspoon to grams/ml (approximately 5ml or 5g)
+      normalizedServingSize = normalizedServingSize * 5;
+    } else if (unitLower === 'cup') {
+      // Convert cup to grams/ml (approximately 240ml)
+      normalizedServingSize = normalizedServingSize * 240;
+    } else if (unitLower === 'oz' || unitLower === 'ounce') {
+      // Convert ounce to grams/ml (approximately 28g)
+      normalizedServingSize = normalizedServingSize * 28.35;
+    }
+    // Units 'g', 'gram', 'ml', 'milliliter' are already in the standard unit
+  }
+
   const consumedProduct = await prisma.userConsumedProduct.create({
     data: {
       userId: parseInt(userId),
       productId: parseInt(productId),
       quantity: parseFloat(quantity),
-      servingSize: servingSize ? parseFloat(servingSize) : null,
+      servingSize: normalizedServingSize,
       mealType,
       consumedAt: consumedAt ? new Date(consumedAt) : new Date(),
+      // Store the original unit for reference if needed
+      unit: unit || null
     },
     include: {
       product: true,
@@ -439,6 +464,97 @@ const formatConsumedProduct = (consumedProduct) => {
   };
 };
 
+/**
+ * Get user's daily nutrient consumption for home page
+ * Shows specific nutrient factors: transfattyAcids, fat, sugar, salt, and calorie
+ */
+const getUserHomeNutritionStatus = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+  const { date } = req.query;
+
+  if (!userId) {
+    throw new AppError('User ID is required', 400);
+  }
+
+  // Set up the date range for the query (specific day)
+  const targetDate = date ? new Date(date) : new Date();
+  const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
+  const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999));
+
+  // Get consumed products for the specified day
+  const consumedProducts = await prisma.userConsumedProduct.findMany({
+    where: {
+      userId: parseInt(userId),
+      consumedAt: {
+        gte: startOfDay,
+        lte: endOfDay,
+      },
+    },
+    include: {
+      product: true,
+    },
+  });
+
+  // Calculate nutrition totals for the specific nutrients required for home page
+  let nutritionTotals = {
+    transfattyAcids: 0,
+    fat: 0,
+    sugar: 0, 
+    salt: 0,
+    calorie: 0
+  };
+
+  // Process each consumed product
+  consumedProducts.forEach(item => {
+    const { product, quantity, servingSize } = item;
+    const multiplier = servingSize && product.servingSize 
+      ? (quantity * servingSize) / product.servingSize 
+      : quantity;
+
+    nutritionTotals.transfattyAcids += (product.transfattyAcids || 0) * multiplier;
+    nutritionTotals.fat += (product.fat || 0) * multiplier;
+    nutritionTotals.sugar += (product.sugar || 0) * multiplier;
+    nutritionTotals.salt += (product.salt || 0) * multiplier;
+    nutritionTotals.calorie += (product.calorie || 0) * multiplier;
+  });
+
+  // Get user's recommended daily intake if available
+  const user = await prisma.user.findUnique({
+    where: { id: parseInt(userId) },
+    select: {
+      recommendedDailyCalories: true,
+      recommendedDailyFat: true,
+      recommendedDailySugar: true,
+      recommendedDailySalt: true
+    }
+  });
+
+  // Default recommended values if user-specific ones are not set
+  const recommendedIntake = {
+    transfattyAcids: 2, // Default value in grams
+    fat: user?.recommendedDailyFat || 70, // Default value in grams
+    sugar: user?.recommendedDailySugar || 30, // Default value in grams
+    salt: user?.recommendedDailySalt || 5, // Default value in grams
+    calorie: user?.recommendedDailyCalories || 2000 // Default value in kcal
+  };
+
+  // Calculate percentage of recommended intake consumed
+  const nutritionPercentage = {
+    transfattyAcids: (nutritionTotals.transfattyAcids / recommendedIntake.transfattyAcids) * 100,
+    fat: (nutritionTotals.fat / recommendedIntake.fat) * 100,
+    sugar: (nutritionTotals.sugar / recommendedIntake.sugar) * 100,
+    salt: (nutritionTotals.salt / recommendedIntake.salt) * 100,
+    calorie: (nutritionTotals.calorie / recommendedIntake.calorie) * 100
+  };
+
+  res.status(200).json({
+    date: startOfDay.toISOString().split('T')[0],
+    nutritionTotals,
+    recommendedIntake,
+    nutritionPercentage
+  });
+});
+
 module.exports = {
   addConsumedProduct,
   getUserConsumedProducts,
@@ -446,4 +562,5 @@ module.exports = {
   getDailyNutritionSummary,
   getWeeklyNutritionSummary,
   getMonthlyNutritionSummary,
+  getUserHomeNutritionStatus
 }; 

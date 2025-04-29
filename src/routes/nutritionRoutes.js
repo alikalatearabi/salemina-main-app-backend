@@ -12,4 +12,7 @@ router.get('/dashboard/daily/:userId', nutritionController.getDailyNutritionSumm
 router.get('/dashboard/weekly/:userId', nutritionController.getWeeklyNutritionSummary);
 router.get('/dashboard/monthly/:userId', nutritionController.getMonthlyNutritionSummary);
 
+// Home page nutrition status
+router.get('/home/:userId', nutritionController.getUserHomeNutritionStatus);
+
 module.exports = router; 
