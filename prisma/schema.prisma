@@ -28,6 +28,10 @@ model User {
   waterIntake    Float?        @map("water_intake") // daily intake in liters
   appetiteMode   AppetiteMode? @map("appetite_mode")
   signupComplete Boolean       @default(false) @map("signup_complete")
+  recommendedDailyCalories Float?   @map("recommended_daily_calories")
+  recommendedDailyFat      Float?   @map("recommended_daily_fat")
+  recommendedDailySugar    Float?   @map("recommended_daily_sugar")
+  recommendedDailySalt     Float?   @map("recommended_daily_salt")
   createdAt      DateTime      @default(now()) @map("created_at")
   updatedAt      DateTime      @updatedAt @map("updated_at")
   
