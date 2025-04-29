@@ -102,15 +102,6 @@ async function main() {
       ],
     },
     {
-      name: 'AppetiteStatus',
-      persianName: 'وضعیت اشتها',
-      levels: [
-        { name: 'Low', persianName: 'کم' },
-        { name: 'Normal', persianName: 'معمولی' },
-        { name: 'High', persianName: 'زیاد' },
-      ],
-    },
-    {
       name: 'AcidReflux',
       persianName: 'ریفلاکس معده',
       levels: [
@@ -285,6 +276,16 @@ async function main() {
       console.error(`Error creating activity level translation ${activity.level}:`, error.message);
     }
   }
+
+  // Add appetite mode translations
+  await prisma.appetiteModeTranslation.createMany({
+    data: [
+      { mode: 'LOW', persianName: 'کم' },
+      { mode: 'NORMAL', persianName: 'معمولی' },
+      { mode: 'HIGH', persianName: 'زیاد' }
+    ],
+    skipDuplicates: true
+  });
 
   console.log('Seeding completed successfully.');
 }

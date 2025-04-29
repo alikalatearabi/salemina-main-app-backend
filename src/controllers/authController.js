@@ -6,6 +6,7 @@ const { asyncHandler, AppError } = require('../utils/helpers');
  */
 const checkPhone = asyncHandler(async (req, res) => {
   const { phone } = req.body;
+  console.log(phone)
 
   if (!phone) {
     throw new AppError('Phone number is required', 400);
@@ -387,6 +388,148 @@ const getFoodPreferences = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get activity levels with translations
+ */
+const getActivityLevels = asyncHandler(async (req, res) => {
+  const activityLevels = [
+    {
+      id: 1,
+      name: "Sedentary",
+      name_fa: "کم تحرک",
+      description: "Little to no exercise, desk job",
+      description_fa: "تمرین کم یا بدون تمرین، شغل پشت میز"
+    },
+    {
+      id: 2,
+      name: "Lightly Active",
+      name_fa: "کمی فعال",
+      description: "Light exercise 1-3 days per week",
+      description_fa: "تمرین سبک 1-3 روز در هفته"
+    },
+    {
+      id: 3,
+      name: "Moderately Active",
+      name_fa: "نسبتا فعال",
+      description: "Moderate exercise 3-5 days per week",
+      description_fa: "تمرین متوسط 3-5 روز در هفته"
+    },
+    {
+      id: 4,
+      name: "Very Active",
+      name_fa: "بسیار فعال",
+      description: "Hard exercise 6-7 days per week",
+      description_fa: "تمرین سخت 6-7 روز در هفته"
+    },
+    {
+      id: 5,
+      name: "Extremely Active",
+      name_fa: "به شدت فعال",
+      description: "Hard daily exercise and physical job or training twice a day",
+      description_fa: "تمرین سخت روزانه و شغل فیزیکی یا تمرین دو بار در روز"
+    }
+  ];
+
+  res.status(200).json(activityLevels);
+});
+
+/**
+ * Get illnesses with levels and translations
+ */
+const getIllnessesWithLevels = asyncHandler(async (req, res) => {
+  const illnesses = await prisma.illness.findMany({
+    orderBy: { name: 'asc' }
+  });
+
+  // Use enum values from Prisma schema
+  const illnessLevels = [
+    {
+      id: "LOW",
+      name: "Low",
+      name_fa: "کم"
+    },
+    {
+      id: "MEDIUM",
+      name: "Medium",
+      name_fa: "متوسط"
+    },
+    {
+      id: "HIGH",
+      name: "High",
+      name_fa: "زیاد"
+    }
+  ];
+
+  res.status(200).json({
+    illnesses,
+    levels: illnessLevels
+  });
+});
+
+/**
+ * Get food preferences with translations 
+ */
+const getFullFoodPreferences = asyncHandler(async (req, res) => {
+  const preferences = await prisma.foodPreference.findMany({
+    orderBy: { name: 'asc' }
+  });
+
+  // Add translations for each preference
+  const preferencesWithTranslations = preferences.map(pref => {
+    return {
+      ...pref,
+      name_fa: pref.persianName || "" // Using nameFa if it exists in the DB, otherwise empty string
+    };
+  });
+
+  res.status(200).json(preferencesWithTranslations);
+});
+
+/**
+ * Get appetite modes with translations
+ */
+const getAppetiteModes = asyncHandler(async (req, res) => {
+  // Try to get translations from database first
+  let appetiteModeTranslations = [];
+  try {
+    appetiteModeTranslations = await prisma.appetiteModeTranslation.findMany();
+  } catch (error) {
+    // Table might not exist yet or be empty, handle gracefully
+    console.log('Appetite mode translations table not found or empty', error);
+  }
+
+  // If translations exist in database, use them
+  if (appetiteModeTranslations.length > 0) {
+    const formattedModes = appetiteModeTranslations.map(trans => ({
+      id: trans.mode,
+      name: trans.mode.charAt(0) + trans.mode.slice(1).toLowerCase(),
+      name_fa: trans.persianName
+    }));
+    return res.status(200).json(formattedModes);
+  }
+
+  // Fallback to hardcoded values if database doesn't have translations yet
+  const appetiteModes = [
+    {
+      id: "LOW",
+      name: "Low",
+      name_fa: "کم"
+    },
+    {
+      id: "NORMAL", 
+      name: "Normal",
+      name_fa: "معمولی"
+    },
+    {
+      id: "HIGH",
+      name: "High",
+      name_fa: "زیاد"
+    }
+  ];
+
+  res.status(200).json(appetiteModes);
+});
+
+/**
  * Helper function to get user by ID
  */
 const getUserById = async (userId) => {
@@ -462,5 +605,9 @@ module.exports = {
   getSignupProgress,
   getIllnesses,
   getAllergies,
-  getFoodPreferences
+  getFoodPreferences,
+  getActivityLevels,
+  getIllnessesWithLevels,
+  getFullFoodPreferences,
+  getAppetiteModes
 }; 

@@ -21,5 +21,9 @@ router.get('/signup/progress/:userId', authController.getSignupProgress);
 router.get('/illnesses', authController.getIllnesses);
 router.get('/allergies', authController.getAllergies);
 router.get('/food-preferences', authController.getFoodPreferences);
+router.get('/activity-levels', authController.getActivityLevels);
+router.get('/illnesses-with-levels', authController.getIllnessesWithLevels);
+router.get('/full-food-preferences', authController.getFullFoodPreferences);
+router.get('/appetite-modes', authController.getAppetiteModes);
 
 module.exports = router; 
