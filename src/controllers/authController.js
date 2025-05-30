@@ -359,7 +359,10 @@ const getSignupProgress = asyncHandler(async (req, res) => {
  */
 const getIllnesses = asyncHandler(async (req, res) => {
   const illnesses = await prisma.illness.findMany({
-    orderBy: { name: 'asc' }
+    orderBy: { name: 'asc' },
+    include: {
+      levels: true
+    }
   });
 
   res.status(200).json(illnesses);

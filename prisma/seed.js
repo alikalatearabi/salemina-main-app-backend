@@ -102,6 +102,15 @@ async function main() {
       ],
     },
     {
+      name: 'AppetiteStatus',
+      persianName: 'وضعیت اشتها',
+      levels: [
+        { name: 'Low', persianName: 'کم' },
+        { name: 'Normal', persianName: 'معمولی' },
+        { name: 'High', persianName: 'زیاد' },
+      ],
+    },
+    {
       name: 'AcidReflux',
       persianName: 'ریفلاکس معده',
       levels: [
@@ -130,8 +139,16 @@ async function main() {
   console.log('Seeding illnesses...');
   for (const illness of illnesses) {
     try {
-      const createdIllness = await prisma.illness.create({
-        data: {
+      const createdIllness = await prisma.illness.upsert({
+        where: { name: illness.name },
+        update: {
+          persianName: illness.persianName,
+          levels: {
+            deleteMany: {},
+            create: illness.levels,
+          },
+        },
+        create: {
           name: illness.name,
           persianName: illness.persianName,
           levels: {
@@ -139,7 +156,7 @@ async function main() {
           },
         },
       });
-      console.log(`Created illness: ${createdIllness.name}`);
+      console.log(`Created/updated illness: ${createdIllness.name}`);
     } catch (error) {
       console.error(`Error creating illness ${illness.name}:`, error.message);
     }
