@@ -5,6 +5,9 @@ const authController = require('../controllers/authController');
 // Initial signup with phone number
 router.post('/signup/phone', authController.checkPhone);
 
+// Get user by phone number
+router.get('/user/:phone', authController.getUserByPhone);
+
 // Signup steps
 router.post('/signup/basic-info', authController.saveBasicInfo);
 router.post('/signup/physical-attributes', authController.savePhysicalAttributes);

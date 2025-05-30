@@ -596,6 +596,77 @@ const getCompletedSteps = (user) => {
   return steps;
 };
 
+/**
+ * Get user data by phone number
+ */
+const getUserByPhone = asyncHandler(async (req, res) => {
+  const { phone } = req.params;
+
+  if (!phone) {
+    throw new AppError('Phone number is required', 400);
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { phone },
+    include: {
+      userIllnesses: {
+        include: {
+          illness: true
+        }
+      },
+      userAllergies: {
+        include: {
+          allergy: true
+        }
+      },
+      userPreferences: {
+        include: {
+          foodPreference: true
+        }
+      }
+    }
+  });
+
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  res.status(200).json({
+    success: true,
+    data: {
+      id: user.id,
+      phone: user.phone,
+      email: user.email,
+      name: user.name,
+      gender: user.gender,
+      birthDate: user.birthDate,
+      height: user.height,
+      weight: user.weight,
+      idealWeight: user.idealWeight,
+      activityLevel: user.activityLevel,
+      waterIntake: user.waterIntake,
+      appetiteMode: user.appetiteMode,
+      signupComplete: user.signupComplete,
+      illnesses: user.userIllnesses.map(ui => ({
+        id: ui.illness.id,
+        name: ui.illness.name,
+        persianName: ui.illness.persianName,
+        level: ui.level
+      })),
+      allergies: user.userAllergies.map(ua => ({
+        id: ua.allergy.id,
+        name: ua.allergy.name,
+        persianName: ua.allergy.persianName
+      })),
+      foodPreferences: user.userPreferences.map(up => ({
+        id: up.foodPreference.id,
+        name: up.foodPreference.name,
+        persianName: up.foodPreference.persianName
+      }))
+    }
+  });
+});
+
 module.exports = {
   checkPhone,
   saveBasicInfo,
@@ -612,5 +683,6 @@ module.exports = {
   getActivityLevels,
   getIllnessesWithLevels,
   getFullFoodPreferences,
-  getAppetiteModes
+  getAppetiteModes,
+  getUserByPhone
 }; 
