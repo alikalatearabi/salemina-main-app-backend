@@ -53,6 +53,11 @@ const getDashboardData = async (req, res) => {
         });
 
         res.json({
+            totalCalories,
+            totalSalt,
+            totalSugar,
+            totalFat,
+            totalTransFattyAcids,
             consumed: {
                 calories: totalCalories,
                 salt: totalSalt,
