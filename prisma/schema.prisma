@@ -32,6 +32,7 @@ model User {
   recommendedDailyFat      Float?   @map("recommended_daily_fat")
   recommendedDailySugar    Float?   @map("recommended_daily_sugar")
   recommendedDailySalt     Float?   @map("recommended_daily_salt")
+  recommendedDailyTransFattyAcids Float? @map("recommended_daily_trans_fatty_acids")
   createdAt      DateTime      @default(now()) @map("created_at")
   updatedAt      DateTime      @updatedAt @map("updated_at")
   
