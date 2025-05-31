@@ -171,6 +171,18 @@ const getDailyNutritionSummary = asyncHandler(async (req, res) => {
   
   // Add meal-specific breakdowns
   const mealBreakdown = await getMealBreakdown(userId, startOfDay, endOfDay);
+
+  // Get user's recommended daily values
+  const user = await prisma.user.findUnique({
+    where: { id: parseInt(userId) },
+    select: {
+      recommendedDailyCalories: true,
+      recommendedDailySalt: true,
+      recommendedDailySugar: true,
+      recommendedDailyFat: true,
+      recommendedDailyTransFattyAcids: true
+    }
+  });
   
   res.status(200).json({
     date: startOfDay.toISOString().split('T')[0],
@@ -180,8 +192,16 @@ const getDailyNutritionSummary = asyncHandler(async (req, res) => {
     totalSalt: summary.salt,
     totalProtein: summary.protein,
     totalCarbs: summary.carbs,
+    totalTransFattyAcids: summary.transfattyAcids,
     mealBreakdown,
-    consumedProducts: consumedProducts.map(formatConsumedProduct)
+    consumedProducts: consumedProducts.map(formatConsumedProduct),
+    recommended: {
+      calories: user.recommendedDailyCalories,
+      salt: user.recommendedDailySalt,
+      sugar: user.recommendedDailySugar,
+      fat: user.recommendedDailyFat,
+      transfattyAcids: user.recommendedDailyTransFattyAcids
+    }
   });
 });
 
@@ -335,57 +355,73 @@ const getMonthlyNutritionSummary = asyncHandler(async (req, res) => {
  * Helper function to calculate nutrition summary from consumed products
  */
 const calculateNutritionSummary = (consumedProducts) => {
-  return consumedProducts.reduce((summary, entry) => {
-    const { product, quantity, servingSize } = entry;
-    const factor = quantity * (servingSize ? (servingSize / product.per) : 1);
-    
-    // Add nutrient values with safety checks
-    summary.calories += (product.calorie || 0) * factor;
-    summary.fat += (product.fat || 0) * factor;
-    summary.sugar += (product.sugar || 0) * factor;
-    summary.salt += (product.salt || 0) * factor;
-    
-    // Handle string values that need conversion
-    if (product.protein) {
-      const proteinValue = parseFloat(product.protein) || 0;
-      summary.protein += proteinValue * factor;
-    }
-    
-    if (product.carbohydrate) {
-      const carbValue = parseFloat(product.carbohydrate) || 0;
-      summary.carbs += carbValue * factor;
-    }
-    
-    return summary;
-  }, { calories: 0, fat: 0, sugar: 0, salt: 0, protein: 0, carbs: 0 });
+  const summary = {
+    calories: 0,
+    fat: 0,
+    sugar: 0,
+    salt: 0,
+    protein: 0,
+    carbs: 0,
+    transfattyAcids: 0
+  };
+
+  consumedProducts.forEach(consumed => {
+    const product = consumed.product;
+    const multiplier = consumed.quantity * (consumed.servingSize || 1);
+
+    summary.calories += (product.calorie || 0) * multiplier;
+    summary.fat += (product.fat || 0) * multiplier;
+    summary.sugar += (product.sugar || 0) * multiplier;
+    summary.salt += (product.salt || 0) * multiplier;
+    summary.protein += (parseFloat(product.protein) || 0) * multiplier;
+    summary.carbs += (parseFloat(product.carbohydrate) || 0) * multiplier;
+    summary.transfattyAcids += (product.transfattyAcids || 0) * multiplier;
+  });
+
+  return summary;
 };
 
 /**
- * Helper function to get meal breakdown for a specific date range
+ * Get meal breakdown for a specific time range
  */
 const getMealBreakdown = async (userId, startDate, endDate) => {
-  const mealTypes = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK'];
-  const breakdown = {};
-  
-  for (const mealType of mealTypes) {
-    const consumedProducts = await prisma.userConsumedProduct.findMany({
-      where: {
-        userId: parseInt(userId),
-        mealType,
-        consumedAt: {
-          gte: startDate,
-          lte: endDate,
-        },
+  const consumedProducts = await prisma.userConsumedProduct.findMany({
+    where: {
+      userId: parseInt(userId),
+      consumedAt: {
+        gte: startDate,
+        lte: endDate,
       },
-      include: {
-        product: true,
-      },
-    });
-    
-    breakdown[mealType.toLowerCase()] = calculateNutritionSummary(consumedProducts);
-  }
-  
-  return breakdown;
+    },
+    include: {
+      product: true,
+    },
+  });
+
+  const mealBreakdown = {
+    breakfast: { calories: 0, fat: 0, sugar: 0, salt: 0, protein: 0, carbs: 0, transfattyAcids: 0 },
+    lunch: { calories: 0, fat: 0, sugar: 0, salt: 0, protein: 0, carbs: 0, transfattyAcids: 0 },
+    dinner: { calories: 0, fat: 0, sugar: 0, salt: 0, protein: 0, carbs: 0, transfattyAcids: 0 },
+    snack: { calories: 0, fat: 0, sugar: 0, salt: 0, protein: 0, carbs: 0, transfattyAcids: 0 }
+  };
+
+  consumedProducts.forEach(consumed => {
+    const product = consumed.product;
+    const multiplier = consumed.quantity * (consumed.servingSize || 1);
+    const mealType = consumed.mealType.toLowerCase();
+
+    if (mealBreakdown[mealType]) {
+      mealBreakdown[mealType].calories += (product.calorie || 0) * multiplier;
+      mealBreakdown[mealType].fat += (product.fat || 0) * multiplier;
+      mealBreakdown[mealType].sugar += (product.sugar || 0) * multiplier;
+      mealBreakdown[mealType].salt += (product.salt || 0) * multiplier;
+      mealBreakdown[mealType].protein += (parseFloat(product.protein) || 0) * multiplier;
+      mealBreakdown[mealType].carbs += (parseFloat(product.carbohydrate) || 0) * multiplier;
+      mealBreakdown[mealType].transfattyAcids += (product.transfattyAcids || 0) * multiplier;
+    }
+  });
+
+  return mealBreakdown;
 };
 
 /**
